@@ -2,54 +2,98 @@
 
 #include "Board.hpp"
 
-// ─────────────────────────────────────────────────────────────────────────────
-//  GameEngine — Moteur de règles du Gomoku
-//
-//  Gère le déroulement de la partie : alternance des tours, validation des
-//  coups, captures, détection de fin de partie.
-//  L'interface graphique appelle cette classe pour jouer et interroger l'état.
-// ─────────────────────────────────────────────────────────────────────────────
+#include <chrono>
+#include <cstdint>
+#include <vector>
+
+enum class GameMode
+{
+    HUMAN_VS_AI,
+    HOTSEAT
+};
+
+enum class TTFlag : int8_t
+{
+    EXACT,
+    LOWER,
+    UPPER
+};
+
+struct TTEntry
+{
+    uint64_t hash  = 0;
+    int      depth = 0;
+    int      score = 0;
+    TTFlag   flag  = TTFlag::EXACT;
+    int      bestMove = -1;
+};
 
 class GameEngine
 {
 public:
     GameEngine();
 
-    // ── Accès au plateau (lecture seule pour l'affichage) ───────────────────
     const Board& getBoard() const;
 
-    // ── Validation & jeu ────────────────────────────────────────────────────
-    // Retourne true si la position est jouable (case vide + toutes les règles).
+    void setMode(GameMode mode);
+    GameMode getMode() const;
+
     bool isLegalMove(int pos) const;
-
-    // Joue un coup pour le joueur courant : capture, changement de tour,
-    // détection de fin de partie. Lance une exception si le coup est illégal.
     void playMove(int pos);
-
-    // Annule le dernier coup joué (utile pour une éventuelle fonctionnalité undo).
     void undoMove();
 
-    // ── État de la partie ───────────────────────────────────────────────────
-    bool isTerminal()        const;
-    Cell getWinner()         const;
-    Cell getCurrentPlayer()  const;
-    int  getMoveCount()      const;
+    bool     isTerminal() const;
+    Cell     getWinner() const;
+    WinReason getWinReason() const;
+    Cell     getCurrentPlayer() const;
+    int      getMoveCount() const;
+    int      getCaptureCount(Cell player) const;
 
-    // ── Captures ────────────────────────────────────────────────────────────
-    int getCaptureCount(Cell player) const;
+    int  getLastMove() const;
+    int  getSuggestedMove() const;
+    long getLastAiTimeMs() const;
+    int  getLastSearchDepth() const;
 
-    // ── Utilitaire ──────────────────────────────────────────────────────────
+    void playAiMove();
+    void updateSuggestion();
+
     void reset();
 
 private:
-    Board m_board;
-    Cell  m_currentPlayer;
-    Cell  m_winner;
-    bool  m_terminal;
+    static constexpr int    MAX_DEPTH        = 12;
+    static constexpr int    MAX_SEARCH_MOVES = 8;
+    static constexpr int    TT_SIZE          = 1 << 20;
+    static constexpr int    INF_SCORE        = 10000000;
+    static constexpr double TIME_LIMIT_S     = 0.5;
 
-    // ── Helpers internes (implémentés dans les tâches suivantes) ────────────
-    std::vector<int> computeCaptures(int pos, Cell player) const;
-    bool             checkAlignment(int pos, Cell player)  const;
-    bool             checkDoubleThree(int pos, Cell player) const;
-    bool             checkEndgameCapture(Cell player)       const;
+    Board    m_board;
+    Cell     m_currentPlayer;
+    Cell     m_winner;
+    WinReason m_winReason;
+    bool     m_terminal;
+    GameMode m_mode;
+
+    int  m_lastMove;
+    int  m_suggestedMove;
+    long m_lastAiTimeMs;
+    int  m_lastSearchDepth;
+
+    std::vector<TTEntry> m_tt;
+
+    struct SearchStats
+    {
+        int nodes = 0;
+        std::chrono::steady_clock::time_point deadline;
+    };
+
+    int  negamax(int depth, int alpha, int beta, Cell rootPlayer, SearchStats& stats);
+    int  collectSearchMoves(Cell player, int* out, bool legalOnly) const;
+    int  evaluate(Cell rootPlayer) const;
+    int  evaluatePositional(Cell rootPlayer) const;
+    int  terminalScore(Cell mover, WinReason reason, int depth, Cell rootPlayer) const;
+
+    void storeTT(uint64_t hash, int depth, int score, TTFlag flag, int bestMove);
+    bool probeTT(uint64_t hash, int depth, int alpha, int beta, int& score, int& bestMove) const;
+
+    int  chooseAiMove();
 };
