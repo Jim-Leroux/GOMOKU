@@ -1,6 +1,11 @@
 #include "GameEngine.hpp"
 #include <stdexcept>
 
+namespace
+{
+    constexpr int AXES[4][2] = { {0, 1}, {1, 0}, {1, 1}, {1, -1} };
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Constructor
 // ─────────────────────────────────────────────────────────────────────────────
@@ -51,7 +56,11 @@ void GameEngine::playMove(int pos)
     std::vector<int> captured = computeCaptures(pos, m_currentPlayer);
     m_board.applyMove(pos, m_currentPlayer, captured);
 
-    // TODO (tâche 2.1) : détecter alignement de 5+
+    if (checkAlignment(pos, m_currentPlayer))
+    {
+        m_winner = m_currentPlayer;
+        m_terminal = true;
+    }
     // TODO (tâche 2.2) : victoire par captures (>= 10)
     // TODO (tâche 2.4) : vérifier Endgame Capture
 
@@ -126,9 +135,27 @@ std::vector<int> GameEngine::computeCaptures(int pos, Cell player) const
 
 bool GameEngine::checkAlignment(int pos, Cell player) const
 {
-    (void)pos;
-    (void)player;
-    return false; // TODO tâche 2.1
+    int row = Board::row(pos), col = Board::col(pos);
+    for (const int (&axis)[2] : AXES)
+    {
+        int deltaRow = axis[0], deltaCol = axis[1];
+        int count = 1;
+        int nextRow = row + deltaRow, nextCol = col + deltaCol;
+        while (Board::isValid(nextRow, nextCol) && m_board.get(nextRow, nextCol) == player)
+        {
+            ++count;
+            nextRow += deltaRow, nextCol += deltaCol;
+        }
+        nextRow = row - deltaRow, nextCol = col - deltaCol;
+        while (Board::isValid(nextRow, nextCol) && m_board.get(nextRow, nextCol) == player)
+        {
+            ++count;
+            nextRow -= deltaRow, nextCol -= deltaCol;
+        }
+        if (count >= 5)
+            return true;
+    }
+    return false;
 }
 
 bool GameEngine::checkDoubleThree(int pos, Cell player) const
