@@ -4,6 +4,11 @@
 namespace
 {
     constexpr int AXES[4][2] = { {0, 1}, {1, 0}, {1, 1}, {1, -1} };
+    constexpr int DIRS[8][2] = {
+        {-1, -1}, {-1, 0}, {-1, 1},
+        { 0, -1},          { 0, 1},
+        { 1, -1}, { 1, 0}, { 1, 1}
+    };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -61,7 +66,12 @@ void GameEngine::playMove(int pos)
         m_winner = m_currentPlayer;
         m_terminal = true;
     }
-    // TODO (tâche 2.2) : victoire par captures (>= 10)
+    
+    if (getCaptureCount(m_currentPlayer) >= 10)
+    {
+        m_winner = m_currentPlayer;
+        m_terminal = true;
+    }
     // TODO (tâche 2.4) : vérifier Endgame Capture
 
     m_currentPlayer = opponent(m_currentPlayer);
@@ -128,9 +138,25 @@ void GameEngine::reset()
 // ─────────────────────────────────────────────────────────────────────────────
 std::vector<int> GameEngine::computeCaptures(int pos, Cell player) const
 {
-    (void)pos;
-    (void)player;
-    return {}; // TODO tâche 2.2
+    Cell opp = opponent(player);
+    std::vector<int> captured;
+    int row = Board::row(pos), col = Board::col(pos);
+    for (const int (&dir)[2] : DIRS)
+    {
+        int row1 = row + dir[0], col1 = col + dir[1];
+        int row2 = row + dir[0] * 2, col2 = col + dir[1] * 2;
+        int row3 = row + dir[0] * 3, col3 = col + dir[1] * 3;
+        if (!Board::isValid(row3, col3))
+            continue;
+        if (m_board.get(row1, col1) == opp
+            && m_board.get(row2, col2) == opp
+            && m_board.get(row3, col3) == player)
+        {
+            captured.push_back(Board::index(row1, col1));
+            captured.push_back(Board::index(row2, col2));
+        }
+    }
+    return captured;
 }
 
 bool GameEngine::checkAlignment(int pos, Cell player) const
