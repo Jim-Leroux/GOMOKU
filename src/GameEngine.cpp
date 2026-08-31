@@ -9,6 +9,15 @@ namespace
         { 0, -1},          { 0, 1},
         { 1, -1}, { 1, 0}, { 1, 1}
     };
+
+    Cell cellIfPlayed(const Board& board, int index, int pos, Cell player)
+    {
+        if (index == pos)
+            return player;
+        if (!Board::isValidIdx(index))
+            return opponent(player);
+        return board.get(index);
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -42,11 +51,9 @@ bool GameEngine::isLegalMove(int pos) const
         return false;
     if (m_terminal)
         return false;
-
-    // TODO (tâche 2.3) : interdire le double-three
-    // TODO (tâche 2.2) : interdire de jouer dans une capture
-
-    return true;
+    if (!computeCaptures(pos, m_currentPlayer).empty())
+        return true;
+    return !checkDoubleThree(pos, m_currentPlayer);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -186,9 +193,43 @@ bool GameEngine::checkAlignment(int pos, Cell player) const
 
 bool GameEngine::checkDoubleThree(int pos, Cell player) const
 {
-    (void)pos;
-    (void)player;
-    return false; // TODO tâche 2.3
+    int freeAxes = 0;
+    int row = Board::row(pos), col = Board::col(pos);
+    for (const int (&axis)[2] : AXES)
+    {
+        int deltaRow = axis[0], deltaCol = axis[1];
+        for (int offset = -3; offset <= 0; ++offset)
+        {
+            int selfCount = 0, emptyCount = 0;
+            bool blocked = false;
+            for (int i = 0; i < 4 && !blocked; ++i)
+            {
+                int cellRow = row + (offset + i) * deltaRow, cellCol = col + (offset + i) * deltaCol;
+                int index = Board::isValid(cellRow, cellCol) ? Board::index(cellRow, cellCol) : -1;
+                Cell cell = cellIfPlayed(m_board, index, pos, player);
+                if (cell == player)
+                    ++selfCount;
+                else if (cell == Cell::EMPTY)
+                    ++emptyCount;
+                else
+                    blocked = true;
+            }
+            if (blocked || selfCount != 3 || emptyCount != 1)
+                continue;
+
+            int beforeRow = row + (offset - 1) * deltaRow, beforeCol = col + (offset - 1) * deltaCol;
+            int afterRow = row + (offset + 4) * deltaRow, afterCol = col + (offset + 4) * deltaCol;
+            int beforeIndex = Board::isValid(beforeRow, beforeCol) ? Board::index(beforeRow, beforeCol) : -1;
+            int afterIndex = Board::isValid(afterRow, afterCol) ? Board::index(afterRow, afterCol) : -1;
+            if (cellIfPlayed(m_board, beforeIndex, pos, player) == Cell::EMPTY
+                && cellIfPlayed(m_board, afterIndex, pos, player) == Cell::EMPTY)
+            {
+                ++freeAxes;
+                break;
+            }
+        }
+    }
+    return freeAxes >= 2;
 }
 
 bool GameEngine::checkEndgameCapture(Cell player) const
