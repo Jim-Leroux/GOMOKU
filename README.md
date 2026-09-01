@@ -23,6 +23,25 @@ make clean  # Supprime les fichiers objets
 make fclean # Supprime les objets + l'exécutable Gomoku
 ```
 
+## Compilation WebAssembly (Pour React)
+
+Pour éviter d'installer Emscripten localement, vous pouvez utiliser **Docker** pour compiler le projet en `.wasm` et `.js`.
+
+### Avec le script fourni (Recommandé)
+
+```bash
+chmod +x build_wasm.sh
+./build_wasm.sh
+```
+
+### Ou avec Docker directement
+
+```bash
+docker run --rm -v "$(pwd):/src" -u $(id -u):$(id -g) emscripten/emsdk make wasm
+```
+
+Cela va télécharger l'image officielle Emscripten (la première fois), monter votre dossier actuel, compiler le code C++ avec `emcc` et générer `gomoku.wasm` et `gomoku.js` dans votre dossier avec vos droits d'utilisateur (grâce au flag `-u`).
+
 ---
 
 ## Structure du projet
