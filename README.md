@@ -1,67 +1,45 @@
-# Gomoku
+# Gomoku (React & WebAssembly)
 
-Implémentation du jeu de Gomoku en C++ avec SFML.
+Implémentation du jeu de Gomoku avec un **moteur haute-performance en C++** et une **interface visuelle moderne en React**.
 
 ---
 
-## Compilation
+## 🚀 Lancer le projet
 
-### Prérequis — SFML
+L'ensemble de la compilation (C++ vers WebAssembly) est automatisé via Docker. Vous n'avez pas besoin d'installer le SDK Emscripten localement.
 
-| OS | Commande |
+| Commande | Action |
 |---|---|
-| macOS | `brew install sfml` |
-| Ubuntu / Debian | `sudo apt install libsfml-dev` |
-| Arch Linux | `sudo pacman -S sfml` |
-
-### Règles Makefile
-
-```bash
-make        # Compile (sans re-link si rien n'a changé)
-make re     # Recompile tout depuis zéro
-make clean  # Supprime les fichiers objets
-make fclean # Supprime les objets + l'exécutable Gomoku
-```
-
-## Compilation WebAssembly (Pour React)
-
-Pour éviter d'installer Emscripten localement, vous pouvez utiliser **Docker** pour compiler le projet en `.wasm` et `.js`.
-
-### Avec le script fourni (Recommandé)
-
-```bash
-chmod +x build_wasm.sh
-./build_wasm.sh
-```
-
-### Ou avec Docker directement
-
-```bash
-docker run --rm -v "$(pwd):/src" -u $(id -u):$(id -g) emscripten/emsdk make wasm
-```
-
-Cela va télécharger l'image officielle Emscripten (la première fois), monter votre dossier actuel, compiler le code C++ avec `emcc` et générer `gomoku.wasm` et `gomoku.js` dans votre dossier avec vos droits d'utilisateur (grâce au flag `-u`).
+| `make run-web` | Compile le C++ en `.wasm`, copie les fichiers vers React, et lance le serveur de développement Vite (avec Hot-Reload). |
+| `make run-prod` | Crée l'architecture de production multi-étapes via `docker-compose` et héberge le jeu optimisé sur le port `8080` avec Nginx. |
+| `make re` | Nettoie tous les fichiers générés (`fclean`) et relance une compilation propre (`run-web`). |
 
 ---
 
-## Structure du projet
+## 🧠 Guide pour l'équipe (C++)
 
-```
-gomoku/
-├── Makefile
-├── README.md
-├── include/
-│   ├── Board.hpp        # Plateau et structure de données
-│   └── GameEngine.hpp   # Moteur de règles
-└── src/
-    ├── Board.cpp
-    ├── GameEngine.cpp
-    └── main.cpp
-```
+> [!WARNING]  
+> **Impact de l'intégration React :**  
+> L'interface native **SFML** et les cibles de compilation de bureau ont été supprimées du `Makefile`. Vous testerez désormais votre algorithme de jeu directement dans le navigateur !
+
+### Ce que vous devez savoir :
+1. **Indépendance totale :** Vos fichiers cœurs (`Board.cpp`, `GameEngine.cpp`) doivent rester en **C++17 pur**. Le moteur ne doit avoir aucune dépendance au web.
+2. **Le pont WasmBindings :** L'interface React communique avec votre C++ via le fichier `src/WasmBindings.cpp`. Si vous ajoutez une méthode utile à l'interface (ex: `getWinningStones()`), vous devez **obligatoirement l'enregistrer** dans la macro `EMSCRIPTEN_BINDINGS` de ce fichier.
+3. **Performance :** L'exécution du `.wasm` dans le navigateur est quasi-aussi rapide que le natif. N'hésitez pas à implémenter des IA (Minimax, Monte-Carlo) poussées.
+4. **💡 Astuce de Debug (std::cout) :** Si vous utilisez `std::cout` ou `printf` dans votre code C++, le texte s'affichera directement dans la **Console Développeur (F12) de votre navigateur Web**. Parfait pour débugger l'algorithme !
 
 ---
 
-## Architecture
+## 🎨 Guide pour l'équipe (Front-end)
+
+L'interface se trouve dans le dossier `web/`.
+- Propulsé par **Vite** pour un démarrage instantané.
+- Zéro framework lourd (pas de Tailwind) : design 100% **Vanilla CSS** (`index.css`) inspiré du thème **Monokai Pro Light**.
+- Logique asynchrone dans `App.jsx` pour attendre le chargement du moteur WebAssembly avant d'afficher le plateau.
+
+---
+
+## Architecture du Moteur C++
 
 ### `Board` — le plateau
 
@@ -80,36 +58,26 @@ Le plateau 19×19 est stocké comme un **tableau 1D** de 361 cellules (`std::arr
 enum class Cell : int8_t { EMPTY = 0, BLACK = 1, WHITE = 2 };
 ```
 
-**L'historique des coups** (struct `Move`) permet un `undoMove()` instantané : chaque coup enregistre sa position, le joueur et la liste des pierres capturées. L'annulation restaure exactement l'état précédent sans recopier le plateau.
-
 #### API de `Board`
 
 ```cpp
 // Conversion coordonnées ↔ index plat
-static int  Board::index(int row, int col);   // (9, 9)  → 180
-static int  Board::row(int idx);              //  180    → 9
-static int  Board::col(int idx);              //  180    → 9
-static bool Board::isValid(int row, int col); // in-bounds check
-static bool Board::isValidIdx(int idx);
+static int  Board::index(int row, int col);
+static int  Board::row(int idx);
+static int  Board::col(int idx);
+static bool Board::isValid(int row, int col);
 
 // Lecture des cellules
 Cell get(int idx) const;
 Cell get(int row, int col) const;
-bool isEmpty(int idx) const;
 
 // Historique
 void applyMove(int pos, Cell player, const std::vector<int>& captured = {});
 void undoMove();
 int  moveCount() const;
-const std::vector<Move>& history() const;
 
 // Captures
 int getCaptureCount(Cell player) const;
-
-// Utilitaire
-void reset();
-bool isFull() const;
-void print() const;  // affichage ASCII pour le debug
 ```
 
 ---
@@ -118,31 +86,23 @@ void print() const;  // affichage ASCII pour le debug
 
 **Fichiers** : `include/GameEngine.hpp` · `src/GameEngine.cpp`
 
-Gère le déroulement de la partie : alternance des tours, validation des coups selon les règles, captures, et détection de fin de partie.
-
-L'interface graphique (SFML) passe par `GameEngine` pour tout ce qui concerne le jeu.
+Gère le déroulement de la partie : alternance des tours, validation des coups, captures, et détection de fin de partie.
 
 #### API de `GameEngine`
 
 ```cpp
-// Accès au plateau (lecture seule pour l'affichage)
-const Board& getBoard() const;
-
 // Validation
-bool isLegalMove(int pos) const;  // case vide + toutes les règles actives
+bool isLegalMove(int pos) const;
 
 // Jouer
-void playMove(int pos);   // joue pour le joueur courant, effectue les captures
-void undoMove();          // annule le dernier coup
+void playMove(int pos);
+void undoMove();
 
 // État
 bool isTerminal()       const;  // partie terminée ?
-Cell getWinner()        const;  // BLACK, WHITE, ou EMPTY si pas encore fini
+Cell getWinner()        const;  // BLACK, WHITE, ou EMPTY
 Cell getCurrentPlayer() const;  // à qui de jouer
-int  getMoveCount()     const;  // nombre de coups joués
-
-// Captures
-int getCaptureCount(Cell player) const;
+int  getCaptureCount(Cell player) const;
 
 // Réinitialisation
 void reset();
@@ -152,35 +112,16 @@ void reset();
 
 ## Règles du jeu
 
-### Règles implementées
-
-| Règle | Statut |
-|---|---|
-| Plateau 19×19, tableau 1D | ✅ |
-| Alternance des tours | ✅ |
-| Historique et annulation (`undoMove`) | ✅ |
-| Compteurs de captures | ✅ |
+### Règles implémentées
+- Plateau 19×19, tableau 1D
+- Alternance des tours
+- Historique et annulation (`undoMove`)
+- Compteurs de captures
 
 ### Règles à implémenter
-
-| Règle | Tâche |
-|---|---|
-| Détection alignement 5+ pierres (4 directions) | 2.1 |
-| Capture d'une paire flanquée | 2.2 |
-| Règle "on ne joue pas dans une capture" | 2.2 |
-| Victoire à 10 pierres capturées | 2.2 |
-| Interdiction du double-three | 2.3 |
-| Exception double-three par capture | 2.3 |
-| Endgame Capture | 2.4 |
-
----
-
-## Règles Gomoku (rappel sujet)
-
-- **Victoire par alignement** : 5 pierres ou plus dans n'importe quelle direction.
-- **Capture** : flanquer une paire exacte de pierres adverses les retire du plateau.
-- **Victoire par captures** : 10 pierres adverses capturées = victoire.
-- **Double-three interdit** : on ne peut pas jouer un coup qui crée deux alignements de trois pierres libres simultanément.
-  - Exception : si ce double-three est créé par une capture, le coup reste légal.
-- **Endgame Capture** : un alignement de 5 ne gagne pas immédiatement si l'adversaire peut briser la ligne en capturant une paire.
-# GOMOKU
+- Détection alignement 5+ pierres (4 directions)
+- Capture d'une paire flanquée
+- Règle "on ne joue pas dans une capture"
+- Victoire à 10 pierres capturées
+- Interdiction du double-three (avec exception par capture)
+- Endgame Capture
