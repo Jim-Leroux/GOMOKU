@@ -49,7 +49,7 @@ private:
 
     // ── Helpers internes (implémentés dans les tâches suivantes) ────────────
     std::vector<int> computeCaptures(int pos, Cell player) const;
-    bool             checkAlignment(int pos, Cell player)  const;
+    std::vector<int> getAlignmentStones(int pos, Cell player) const;
     bool             checkDoubleThree(int pos, Cell player) const;
-    bool             checkEndgameCapture(Cell player)       const;
+    bool             checkEndgameCapture(Cell player, const std::vector<int>& line) const;
 };

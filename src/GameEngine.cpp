@@ -67,8 +67,9 @@ void GameEngine::playMove(int pos)
 
     std::vector<int> captured = computeCaptures(pos, m_currentPlayer);
     m_board.applyMove(pos, m_currentPlayer, captured);
+    std::vector<int> line = getAlignmentStones(pos, m_currentPlayer);
 
-    if (checkAlignment(pos, m_currentPlayer))
+    if (!line.empty() && !checkEndgameCapture(m_currentPlayer, line))
     {
         m_winner = m_currentPlayer;
         m_terminal = true;
@@ -79,7 +80,6 @@ void GameEngine::playMove(int pos)
         m_winner = m_currentPlayer;
         m_terminal = true;
     }
-    // TODO (tâche 2.4) : vérifier Endgame Capture
 
     m_currentPlayer = opponent(m_currentPlayer);
 }
@@ -166,29 +166,30 @@ std::vector<int> GameEngine::computeCaptures(int pos, Cell player) const
     return captured;
 }
 
-bool GameEngine::checkAlignment(int pos, Cell player) const
+std::vector<int> GameEngine::getAlignmentStones(int pos, Cell player) const
 {
     int row = Board::row(pos), col = Board::col(pos);
+    std::vector<int> result;
     for (const int (&axis)[2] : AXES)
     {
         int deltaRow = axis[0], deltaCol = axis[1];
-        int count = 1;
+        std::vector<int> line = {pos};
         int nextRow = row + deltaRow, nextCol = col + deltaCol;
         while (Board::isValid(nextRow, nextCol) && m_board.get(nextRow, nextCol) == player)
         {
-            ++count;
+            line.push_back(Board::index(nextRow, nextCol));
             nextRow += deltaRow, nextCol += deltaCol;
         }
         nextRow = row - deltaRow, nextCol = col - deltaCol;
         while (Board::isValid(nextRow, nextCol) && m_board.get(nextRow, nextCol) == player)
         {
-            ++count;
+            line.push_back(Board::index(nextRow, nextCol));
             nextRow -= deltaRow, nextCol -= deltaCol;
         }
-        if (count >= 5)
-            return true;
+        if (line.size() >= 5)
+            result.insert(result.end(), line.begin(), line.end());
     }
-    return false;
+    return result;
 }
 
 bool GameEngine::checkDoubleThree(int pos, Cell player) const
@@ -232,8 +233,24 @@ bool GameEngine::checkDoubleThree(int pos, Cell player) const
     return freeAxes >= 2;
 }
 
-bool GameEngine::checkEndgameCapture(Cell player) const
+bool GameEngine::checkEndgameCapture(Cell player, const std::vector<int>& line) const
 {
-    (void)player;
-    return false; // TODO tâche 2.4
+    Cell opp = opponent(player);
+    for (int stone : line)
+    {
+        int row2 = Board::row(stone), col2 = Board::col(stone);
+        for (const int (&dir)[2] : DIRS)
+        {
+            int row1 = row2 - dir[0],     col1 = col2 - dir[1];
+            int row3 = row2 + dir[0],     col3 = col2 + dir[1];
+            int row4 = row3 + dir[0],     col4 = col3 + dir[1];
+            if (!Board::isValid(row1, col1) || !Board::isValid(row3, col3) || !Board::isValid(row4, col4))
+                continue;
+            if (m_board.get(row1, col1) == Cell::EMPTY
+                && m_board.get(row3, col3) == player
+                && m_board.get(row4, col4) == opp)
+                return true;
+        }
+    }
+    return false;
 }
