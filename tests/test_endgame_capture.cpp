@@ -1,6 +1,37 @@
 #include "test.hpp"
 #include "GameEngine.hpp"
 
+namespace
+{
+    // Horizontal Black 5-in-a-row on `lineRow`, cols `startCol`..`startCol+4`.
+    // White can capture the stone at `threatenedIndex` (0..4) on the next move.
+    //
+    // pairRole 0 → stoneIndex 0: EMPTY, stone, partner, opp
+    // pairRole 1 → stoneIndex 1: EMPTY, partner, stone, opp
+    // stoneIndex 2..4 cannot put this player stone in a capturable pair
+    // with the row1–row4 geometry, so each of the five alignment stones is
+    // threatened instead (each is found at slot 0 or 1 for THAT stone).
+    void playBreakableFive(GameEngine& engine, int threatenedIndex, int pairRole)
+    {
+        const int lineRow = 10;
+        const int startCol = 7;
+        const int threatenedCol = startCol + threatenedIndex;
+        const int partnerRow = (pairRole == 0) ? lineRow - 1 : lineRow + 1;
+        const int oppRow     = (pairRole == 0) ? lineRow - 2 : lineRow - 1;
+        int distractorCol = 0;
+
+        engine.playMove(Board::index(partnerRow, threatenedCol)); // Black: extra pair stone
+        engine.playMove(Board::index(oppRow, threatenedCol));     // White: capture anchor
+
+        for (int i = 0; i < 5; ++i)
+        {
+            engine.playMove(Board::index(lineRow, startCol + i));
+            if (i < 4)
+                engine.playMove(Board::index(0, distractorCol++));
+        }
+    }
+}
+
 void test_endgame_capture()
 {
     std::cout << "-- GameEngine::checkEndgameCapture (task 2.4) --\n";
@@ -49,5 +80,49 @@ void test_endgame_capture()
         CHECK(engine.getBoard().isEmpty(Board::index(4, 4)));
         CHECK(engine.getCaptureCount(Cell::WHITE) == 2);
         CHECK(!engine.isTerminal()); // still going: the line is gone
+    }
+
+    // Each of the five alignment stones, in both pair orientations that
+    // row1–row4 can actually match (stoneIndex 0 and 1). Completing move is
+    // always the last cell of the line, so indices 0–3 also prove we do not
+    // only inspect the stone that was just placed.
+    for (int threatenedIndex = 0; threatenedIndex < 5; ++threatenedIndex)
+    {
+        for (int pairRole = 0; pairRole < 2; ++pairRole)
+        {
+            GameEngine engine;
+            playBreakableFive(engine, threatenedIndex, pairRole);
+            CHECK(!engine.isTerminal());
+            CHECK(engine.getWinner() == Cell::EMPTY);
+        }
+    }
+
+    // An extra aligner stone beside the line is not enough: without an
+    // opponent anchor at row4, White cannot capture, so Black wins.
+    {
+        GameEngine engine;
+        engine.playMove(Board::index(9, 11));  engine.playMove(Board::index(0, 0));
+        engine.playMove(Board::index(10, 7));  engine.playMove(Board::index(0, 2));
+        engine.playMove(Board::index(10, 8));  engine.playMove(Board::index(0, 4));
+        engine.playMove(Board::index(10, 9));  engine.playMove(Board::index(0, 6));
+        engine.playMove(Board::index(10, 10)); engine.playMove(Board::index(0, 8));
+        engine.playMove(Board::index(10, 11)); // completes (10,7–11), partner at (9,11), (8,11) empty
+
+        CHECK(engine.isTerminal());
+        CHECK(engine.getWinner() == Cell::BLACK);
+    }
+
+    // White sitting on one side of a single line stone is not a pair either
+    // (row2 is empty). Pattern _ _ P O must not be treated as a capture.
+    {
+        GameEngine engine;
+        engine.playMove(Board::index(10, 7));  engine.playMove(Board::index(9, 11));
+        engine.playMove(Board::index(10, 8));  engine.playMove(Board::index(0, 0));
+        engine.playMove(Board::index(10, 9));  engine.playMove(Board::index(0, 1));
+        engine.playMove(Board::index(10, 10)); engine.playMove(Board::index(0, 2));
+        engine.playMove(Board::index(10, 11));
+
+        CHECK(engine.isTerminal());
+        CHECK(engine.getWinner() == Cell::BLACK);
     }
 }

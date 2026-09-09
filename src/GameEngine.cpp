@@ -238,18 +238,25 @@ bool GameEngine::checkEndgameCapture(Cell player, const std::vector<int>& line) 
     Cell opp = opponent(player);
     for (int stone : line)
     {
-        int row2 = Board::row(stone), col2 = Board::col(stone);
+        int row = Board::row(stone), col = Board::col(stone);
         for (const int (&dir)[2] : DIRS)
         {
-            int row1 = row2 - dir[0],     col1 = col2 - dir[1];
-            int row3 = row2 + dir[0],     col3 = col2 + dir[1];
-            int row4 = row3 + dir[0],     col4 = col3 + dir[1];
-            if (!Board::isValid(row1, col1) || !Board::isValid(row3, col3) || !Board::isValid(row4, col4))
-                continue;
-            if (m_board.get(row1, col1) == Cell::EMPTY
-                && m_board.get(row3, col3) == player
-                && m_board.get(row4, col4) == opp)
-                return true;
+            for (int stoneIndex = 0; stoneIndex < 5; ++stoneIndex)
+            {
+                int offset = -stoneIndex;
+                int row2 = row + offset * dir[0], col2 = col + offset * dir[1];
+                int row1 = row2 - dir[0],         col1 = col2 - dir[1];
+                int row3 = row2 + dir[0],         col3 = col2 + dir[1];
+                int row4 = row3 + dir[0],         col4 = col3 + dir[1];
+                if (!Board::isValid(row1, col1) || !Board::isValid(row2, col2)
+                    || !Board::isValid(row3, col3) || !Board::isValid(row4, col4))
+                    continue;
+                if (m_board.get(row1, col1) == Cell::EMPTY
+                    && m_board.get(row2, col2) == player
+                    && m_board.get(row3, col3) == player
+                    && m_board.get(row4, col4) == opp)
+                    return true;
+            }
         }
     }
     return false;
