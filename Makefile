@@ -8,7 +8,7 @@ INC_DIR		= include
 TEST_DIR	= tests
 
 # Engine sources
-ENGINE_SRCS	= $(SRC_DIR)/Board.cpp $(SRC_DIR)/GameEngine.cpp
+ENGINE_SRCS	= $(SRC_DIR)/Board.cpp $(SRC_DIR)/GameEngine.cpp $(SRC_DIR)/AI.cpp
 ENGINE_OBJS	= $(ENGINE_SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/native/%.o)
 WASM_SRCS	= $(ENGINE_SRCS) $(SRC_DIR)/WasmBindings.cpp
 WASM_OBJS	= $(WASM_SRCS:$(SRC_DIR)/%.cpp=$(OBJ_DIR)/wasm/%.o)
