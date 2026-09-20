@@ -5,6 +5,8 @@ function App() {
   const [engine, setEngine] = useState(null);
   const [board, setBoard] = useState(Array(361).fill(0));
   const [loading, setLoading] = useState(true);
+  const [mode, setMode] = useState(null);
+  const [aiThinking, setAiThinking] = useState(false);  
 
   const updateBoard = (gameEngine) => {
     const state = gameEngine.getBoardState();
@@ -33,15 +35,45 @@ function App() {
     return () => clearInterval(checkInterval);
   }, []);
 
+  const scheduleAiMove = () => {
+    setAiThinking(true);
+    setTimeout(() => {
+      const move = engine.findBestMoveAtDepth(4);
+      if (move >= 0) {
+        const row = Math.floor(move / 19), col = move % 19;
+        engine.playMove(row, col);
+        updateBoard(engine);
+      }
+      setAiThinking(false);
+    }, 0);
+  };
+
   const handlePlay = (index) => {
-    if (!engine || engine.isTerminal()) return;
+    if (!engine || engine.isTerminal() || aiThinking)
+      return;
     const row = Math.floor(index / 19);
     const col = index % 19;
-    
+    if (mode === 'pvai' && !engine.isHumanTurn())
+      return;
     if (engine.isLegalMove(row, col)) {
       engine.playMove(row, col);
       updateBoard(engine);
     }
+    if (mode === 'pvai')
+      scheduleAiMove();
+  };
+
+  const startGame = (chosenMode) => {
+    engine.setMode(chosenMode === 'pvai' ? 1 : 0);
+    engine.reset();
+    updateBoard(engine);
+    setMode(chosenMode);
+  };
+  
+  const backToMenu = () => {
+    engine.reset();
+    updateBoard(engine);
+    setMode(null);
   };
 
   if (loading) {
@@ -49,6 +81,22 @@ function App() {
       <div className="loading-screen">
         <div className="spinner"></div>
         <h2>Chargement de l'IA (C++)...</h2>
+      </div>
+    );
+  }
+
+  if (!loading && mode === null) {
+    return (
+      <div className="app-container">
+        <div className="menu-screen glass-panel">
+          <h1 className="title">Gomoku Master</h1>
+          <button className="btn-primary" onClick={() => startGame('pvp')}>
+            Joueur vs Joueur
+          </button>
+          <button className="btn-primary" onClick={() => startGame('pvai')}>
+            Joueur vs IA
+          </button>
+        </div>
       </div>
     );
   }
@@ -72,13 +120,14 @@ function App() {
             <span className="label">Captures Blanches</span>
             <span className="value">{engine.getWhiteCaptures()}</span>
           </div>
+          {aiThinking && <span className="thinking-label">L'IA réfléchit…</span>}
         </div>
       </header>
 
       {winner !== 0 && (
         <div className="winner-banner glass-panel">
           <h2>{winner === 1 ? 'Les Noirs' : 'Les Blancs'} ont gagné !</h2>
-          <button className="btn-primary" onClick={() => { engine.reset(); updateBoard(engine); }}>Rejouer</button>
+          <button className="btn-primary" onClick={backToMenu}>Rejouer</button>
         </div>
       )}
 

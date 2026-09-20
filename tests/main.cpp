@@ -8,6 +8,7 @@ void test_double_three();
 void test_endgame_capture();
 void test_ai_evaluate();
 void test_ai_search();
+void test_ai_async();
 
 int main()
 {
@@ -19,5 +20,6 @@ int main()
     test_endgame_capture();
     test_ai_evaluate();
     test_ai_search();
+    test_ai_async();
     return Test::summary();
 }

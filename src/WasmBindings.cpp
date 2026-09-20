@@ -1,6 +1,7 @@
 #include <emscripten/bind.h>
 #include "GameEngine.hpp"
 #include <vector>
+#include "AI.hpp"
 
 using namespace emscripten;
 
@@ -67,8 +68,24 @@ public:
         engine.reset();
     }
 
+    void setMode(int mode) {
+        m_mode = mode; // 0 = PvP, 1 = PvAI
+    }
+
+    bool isHumanTurn() const {
+        if (m_mode == 0)
+            return true; // PvP: both sides are human
+        return engine.getCurrentPlayer() == Cell::BLACK; // PvAI: human plays Black
+    }
+
+    int findBestMoveAtDepth(int depth) {
+        return ai.findBestMove(engine, depth); // flat index, or -1 if no move
+    }
+
 private:
     GameEngine engine;
+    AI ai{ Cell::WHITE };
+    int m_mode = 0;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -92,5 +109,8 @@ EMSCRIPTEN_BINDINGS(gomoku_module) {
         .function("getBlackCaptures", &WebGame::getBlackCaptures)
         .function("getWhiteCaptures", &WebGame::getWhiteCaptures)
         .function("undoMove", &WebGame::undoMove)
-        .function("reset", &WebGame::reset);
+        .function("reset", &WebGame::reset)
+        .function("setMode", &WebGame::setMode)
+        .function("isHumanTurn", &WebGame::isHumanTurn)
+        .function("findBestMoveAtDepth", &WebGame::findBestMoveAtDepth);
 }
