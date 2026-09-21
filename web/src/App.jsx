@@ -1,12 +1,23 @@
 import React, { useEffect, useState } from 'react';
 import './index.css';
 
+const AI_SEARCH_DEPTH = 4;
+
+const formatThinkingTime = (ms) => {
+  if (ms == null) return '—';
+  if (ms < 1000) return `${ms} ms`;
+  return `${(ms / 1000).toFixed(1)} s`;
+};
+
 function App() {
   const [engine, setEngine] = useState(null);
   const [board, setBoard] = useState(Array(361).fill(0));
   const [loading, setLoading] = useState(true);
   const [mode, setMode] = useState(null);
-  const [aiThinking, setAiThinking] = useState(false);  
+  const [aiThinking, setAiThinking] = useState(false);
+  const [thinkingTimeMs, setThinkingTimeMs] = useState(null);
+  const [searchDepth, setSearchDepth] = useState(null);
+  const [liveThinkingMs, setLiveThinkingMs] = useState(0);
 
   const updateBoard = (gameEngine) => {
     const state = gameEngine.getBoardState();
@@ -35,16 +46,37 @@ function App() {
     return () => clearInterval(checkInterval);
   }, []);
 
+  useEffect(() => {
+    if (!aiThinking) return;
+    const start = performance.now();
+    const intervalId = setInterval(() => {
+      setLiveThinkingMs(Math.round(performance.now() - start));
+    }, 50);
+    return () => clearInterval(intervalId);
+  }, [aiThinking]);
+
   const scheduleAiMove = () => {
+    if (!engine || engine.isTerminal())
+      return;
     setAiThinking(true);
+    setLiveThinkingMs(0);
     setTimeout(() => {
-      const move = engine.findBestMoveAtDepth(4);
-      if (move >= 0) {
-        const row = Math.floor(move / 19), col = move % 19;
-        engine.playMove(row, col);
-        updateBoard(engine);
+      try {
+        const move = engine.findBestMoveAtDepth(AI_SEARCH_DEPTH);
+        if (move >= 0) {
+          const row = Math.floor(move / 19), col = move % 19;
+          if (engine.isLegalMove(row, col)) {
+            engine.playMove(row, col);
+            updateBoard(engine);
+          }
+        }
+        setThinkingTimeMs(Number(engine.getLastAiThinkingTimeMs()));
+        setSearchDepth(Number(engine.getLastAiSearchDepth()));
+      } catch (e) {
+        console.error('AI move failed', e);
+      } finally {
+        setAiThinking(false);
       }
-      setAiThinking(false);
     }, 0);
   };
 
@@ -58,21 +90,27 @@ function App() {
     if (engine.isLegalMove(row, col)) {
       engine.playMove(row, col);
       updateBoard(engine);
+      if (mode === 'pvai')
+        scheduleAiMove();
     }
-    if (mode === 'pvai')
-      scheduleAiMove();
   };
 
   const startGame = (chosenMode) => {
     engine.setMode(chosenMode === 'pvai' ? 1 : 0);
     engine.reset();
     updateBoard(engine);
+    setThinkingTimeMs(null);
+    setSearchDepth(null);
+    setAiThinking(false);
     setMode(chosenMode);
   };
   
   const backToMenu = () => {
     engine.reset();
     updateBoard(engine);
+    setThinkingTimeMs(null);
+    setSearchDepth(null);
+    setAiThinking(false);
     setMode(null);
   };
 
@@ -120,7 +158,22 @@ function App() {
             <span className="label">Captures Blanches</span>
             <span className="value">{engine.getWhiteCaptures()}</span>
           </div>
-          {aiThinking && <span className="thinking-label">L'IA réfléchit…</span>}
+          {mode === 'pvai' && (
+            <>
+              <div className="stat-box">
+                <span className="label">Profondeur</span>
+                <span className={`value ai-stat-value ${aiThinking ? 'active' : ''}`}>
+                  {aiThinking ? AI_SEARCH_DEPTH : searchDepth ?? '—'}
+                </span>
+              </div>
+              <div className="stat-box">
+                <span className="label">Réflexion IA</span>
+                <span className={`value ai-stat-value ${aiThinking ? 'active' : ''}`}>
+                  {formatThinkingTime(aiThinking ? liveThinkingMs : thinkingTimeMs)}
+                </span>
+              </div>
+            </>
+          )}
         </div>
       </header>
 

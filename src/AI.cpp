@@ -1,5 +1,6 @@
 #include "AI.hpp"
 #include <algorithm>
+#include <chrono>
 #include <limits>
 
 namespace
@@ -209,9 +210,15 @@ int AI::minMax(GameEngine& engine, int depth, int alpha, int beta, bool maximizi
 
 int AI::findBestMove(GameEngine& engine, int depth)
 {
+    const auto t0 = std::chrono::steady_clock::now();
     std::vector<int> moves = getBestMoves(engine);
     if (moves.empty())
+    {
+        m_lastThinkingTimeMs = 0;
+        m_lastSearchDepth = 0;
         return -1;
+    }
+    m_lastSearchDepth = depth;
     int bestMove = moves.front();
     int bestScore = std::numeric_limits<int>::min();
     int alpha = std::numeric_limits<int>::min();
@@ -228,5 +235,7 @@ int AI::findBestMove(GameEngine& engine, int depth)
         }
         alpha = std::max(alpha, bestScore);
     }
+    m_lastThinkingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - t0).count();
     return bestMove;
 }

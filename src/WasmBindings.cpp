@@ -82,6 +82,14 @@ public:
         return ai.findBestMove(engine, depth); // flat index, or -1 if no move
     }
 
+    long long getLastAiThinkingTimeMs() const {
+        return ai.lastThinkingTimeMs();
+    }
+
+    int getLastAiSearchDepth() const {
+        return ai.lastSearchDepth();
+    }
+
 private:
     GameEngine engine;
     AI ai{ Cell::WHITE };
@@ -112,5 +120,7 @@ EMSCRIPTEN_BINDINGS(gomoku_module) {
         .function("reset", &WebGame::reset)
         .function("setMode", &WebGame::setMode)
         .function("isHumanTurn", &WebGame::isHumanTurn)
-        .function("findBestMoveAtDepth", &WebGame::findBestMoveAtDepth);
+        .function("findBestMoveAtDepth", &WebGame::findBestMoveAtDepth)
+        .function("getLastAiThinkingTimeMs", &WebGame::getLastAiThinkingTimeMs)
+        .function("getLastAiSearchDepth", &WebGame::getLastAiSearchDepth);
 }

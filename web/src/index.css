@@ -92,6 +92,16 @@ body {
   font-weight: 600;
 }
 
+.ai-stat-value {
+  min-width: 5rem;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.ai-stat-value.active {
+  color: var(--accent-purple);
+}
+
 .turn-indicator {
   width: 24px;
   height: 24px;
