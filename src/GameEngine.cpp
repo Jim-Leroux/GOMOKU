@@ -1,4 +1,5 @@
 #include "GameEngine.hpp"
+
 #include <stdexcept>
 
 namespace

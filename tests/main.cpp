@@ -9,6 +9,7 @@ void test_endgame_capture();
 void test_ai_evaluate();
 void test_ai_search();
 void test_ai_async();
+void test_ai_iterative_deepening();
 
 int main()
 {
@@ -21,5 +22,6 @@ int main()
     test_ai_evaluate();
     test_ai_search();
     test_ai_async();
+    test_ai_iterative_deepening();
     return Test::summary();
 }

@@ -62,7 +62,7 @@ function App() {
     setLiveThinkingMs(0);
     setTimeout(() => {
       try {
-        const move = engine.findBestMoveAtDepth(AI_SEARCH_DEPTH);
+        const move = engine.findBestMoveTimedMs(500);
         if (move >= 0) {
           const row = Math.floor(move / 19), col = move % 19;
           if (engine.isLegalMove(row, col)) {

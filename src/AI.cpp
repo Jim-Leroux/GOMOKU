@@ -1,7 +1,9 @@
 #include "AI.hpp"
+
 #include <algorithm>
-#include <chrono>
 #include <limits>
+#include <random>
+#include <utility>
 
 namespace
 {
@@ -24,6 +26,35 @@ namespace
     {
         int pairs = stones / 2;
         return pairs * pairs * 200;
+    }
+
+    constexpr int CAP_CLAMP = 10;
+    uint64_t Z_STONE[BOARD_CELLS][2];
+    uint64_t Z_SIDE;
+    uint64_t Z_CAP[2][CAP_CLAMP + 1];
+    bool Z_READY = false;
+
+    void initZobrist()
+    {
+        if (Z_READY)
+            return;
+        std::mt19937_64 rng;
+        for (int cellIndex = 0; cellIndex < BOARD_CELLS; ++cellIndex)
+            for (int playerIndex = 0; playerIndex < 2; ++playerIndex)
+                Z_STONE[cellIndex][playerIndex] = rng();
+        Z_SIDE = rng();
+        for (int playerIndex = 0; playerIndex < 2; ++playerIndex)
+            for (int captureCount = 0; captureCount <= CAP_CLAMP; ++captureCount)
+                Z_CAP[playerIndex][captureCount] = rng();
+        Z_READY = true;
+    }
+
+    inline int colorIndex(Cell player)
+    {
+        if (player == Cell::BLACK)
+            return 0;
+        else
+            return 1;
     }
 
     int countStonesInDirection(const Board& board, int row, int col, int deltaRow, int deltaCol, Cell player)
@@ -136,7 +167,7 @@ int AI::quickMoveScore(const Board& board, int move, Cell player) const
     return score;
 }
 
-std::vector<int> AI::getBestMoves(GameEngine& engine)
+std::vector<int> AI::getBestMoves(GameEngine& engine, int priorityMove)
 {
     const Board& board = engine.getBoard();
     Cell player = engine.getCurrentPlayer();
@@ -151,8 +182,12 @@ std::vector<int> AI::getBestMoves(GameEngine& engine)
     });
     std::vector<int> bestMoves;
     bestMoves.reserve(MAX_CANDIDATES);
+    if (priorityMove >= 0 && engine.isLegalMove(priorityMove))
+        bestMoves.push_back(priorityMove);
     for (const std::pair<int, int>& rankedMove : rankedMoves)
     {
+        if (rankedMove.second == priorityMove)
+            continue;
         if (!engine.isLegalMove(rankedMove.second))
             continue;
         bestMoves.push_back(rankedMove.second);
@@ -162,7 +197,9 @@ std::vector<int> AI::getBestMoves(GameEngine& engine)
     return bestMoves;
 }
 
-int AI::minMax(GameEngine& engine, int depth, int alpha, int beta, bool maximizing)
+int AI::minMax(GameEngine& engine, int depth,
+    int alpha, int beta, bool maximizing,
+    Clock::time_point deadline)
 {
     if (engine.isTerminal())
     {
@@ -175,59 +212,103 @@ int AI::minMax(GameEngine& engine, int depth, int alpha, int beta, bool maximizi
     }
     if (depth == 0)
         return evaluate(engine.getBoard());
-    std::vector<int> moves = getBestMoves(engine);
+
+    const int alphaOrig = alpha;
+    const int betaOrig = beta;
+
+    uint64_t key = positionKey(engine);
+    TTEntry& entry = m_tt[key & (TT_SIZE - 1)];
+    int priorityMove = -1;
+    if (entry.key == key && entry.depth != -1)
+    {
+        priorityMove = entry.bestMove;
+        if (entry.depth >= depth)
+        {
+            if (entry.flag == TT_EXACT)
+                return entry.score;
+            if (entry.flag == TT_LOWER)
+                alpha = std::max(alpha, entry.score);
+            else
+                beta = std::min(beta, entry.score);
+            if (alpha >= beta)
+                return entry.score;
+        }
+    }
+
+    std::vector<int> moves = getBestMoves(engine, priorityMove);
     if (moves.empty())
         return evaluate(engine.getBoard());
+    int bestScore;
+    int bestMove = moves.front();
     if (maximizing)
     {
-        int bestScore = std::numeric_limits<int>::min();
+        bestScore = std::numeric_limits<int>::min();
         for (int move : moves)
         {
-            engine.playMove(move);
-            bestScore = std::max(bestScore, minMax(engine, depth - 1, alpha, beta, false));
-            engine.undoMove();
+            if (Clock::now() >= deadline)
+                break;
+            playHashed(engine, move);
+            int score = minMax(engine, depth - 1, alpha, beta, false, deadline);
+            undoHashed(engine);
+            if (score > bestScore)
+            {
+                bestScore = score;
+                bestMove = move;
+            }
             alpha = std::max(alpha, bestScore);
             if (alpha >= beta)
                 break;
         }
-        return bestScore;
     }
     else
     {
-        int bestScore = std::numeric_limits<int>::max();
+        bestScore = std::numeric_limits<int>::max();
         for (int move : moves)
         {
-            engine.playMove(move);
-            bestScore = std::min(bestScore, minMax(engine, depth - 1, alpha, beta, true));
-            engine.undoMove();
+            if (Clock::now() >= deadline)
+                break;
+            playHashed(engine, move);
+            int score = minMax(engine, depth - 1, alpha, beta, true, deadline);
+            undoHashed(engine);
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestMove = move;
+            }
             beta = std::min(beta, bestScore);
             if (alpha >= beta)
                 break;
         }
-        return bestScore;
     }
+    if (Clock::now() < deadline)
+    {
+        uint8_t flag = bestScore <= alphaOrig ? TT_UPPER
+                     : bestScore >= betaOrig ? TT_LOWER
+                     : TT_EXACT;
+        entry.key = key;
+        entry.depth = depth;
+        entry.score = bestScore;
+        entry.bestMove = bestMove;
+        entry.flag = flag;
+    }
+    return bestScore;
 }
 
 int AI::findBestMove(GameEngine& engine, int depth)
 {
-    const auto t0 = std::chrono::steady_clock::now();
-    std::vector<int> moves = getBestMoves(engine);
+    initSearch(engine);
+    std::vector<int> moves = getBestMoves(engine, -1);
     if (moves.empty())
-    {
-        m_lastThinkingTimeMs = 0;
-        m_lastSearchDepth = 0;
         return -1;
-    }
-    m_lastSearchDepth = depth;
     int bestMove = moves.front();
     int bestScore = std::numeric_limits<int>::min();
     int alpha = std::numeric_limits<int>::min();
     const int beta = std::numeric_limits<int>::max();
     for (int move : moves)
     {
-        engine.playMove(move);
+        playHashed(engine, move);
         int score = minMax(engine, depth - 1, alpha, beta, false);
-        engine.undoMove();
+        undoHashed(engine);
         if (score > bestScore)
         {
             bestScore = score;
@@ -235,7 +316,111 @@ int AI::findBestMove(GameEngine& engine, int depth)
         }
         alpha = std::max(alpha, bestScore);
     }
-    m_lastThinkingTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-        std::chrono::steady_clock::now() - t0).count();
     return bestMove;
+}
+
+int AI::findBestMoveTimed(GameEngine& engine, std::chrono::milliseconds budget)
+{
+    Clock::time_point start = Clock::now();
+    Clock::time_point deadline = start + budget;
+    initSearch(engine);
+    std::vector<int> firstMoves = getBestMoves(engine, -1);
+    if (firstMoves.empty())
+    {
+        m_lastStats = { 0, 0 };
+        m_lastSearchDepth = 0;
+        m_lastThinkingTimeMs = 0;
+        return -1;
+    }
+    int bestMove = firstMoves.front();
+    int reachedDepth = 0;
+    for (int depth = 1; depth <= MAX_DEPTH; ++depth)
+    {
+        int alpha = std::numeric_limits<int>::min();
+        const int beta = std::numeric_limits<int>::max();
+        int depthBestMove = -1;
+        int depthBestValue = std::numeric_limits<int>::min();
+        bool depthCompleted = true;
+        std::vector<int> moves = getBestMoves(engine, bestMove);
+        depthBestMove = moves.front();
+        for (int move : moves)
+        {
+            if (Clock::now() >= deadline)
+            {
+                depthCompleted = false;
+                break;
+            }
+            playHashed(engine, move);
+            int value = minMax(engine, depth - 1, alpha, beta, false, deadline);
+            undoHashed(engine);
+            if (Clock::now() >= deadline)
+            {
+                depthCompleted = false;
+                break;
+            }
+            if (value > depthBestValue)
+            {
+                depthBestValue = value;
+                depthBestMove = move;
+            }
+            alpha = std::max(alpha, depthBestValue);
+        }
+        if (!depthCompleted)
+            break;
+        bestMove = depthBestMove;
+        reachedDepth = depth;
+        if (depthBestValue >= WIN_SCORE)
+            break;
+    }
+    m_lastStats.depthReached = reachedDepth;
+    m_lastStats.elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(Clock::now() - start).count();
+    m_lastSearchDepth = reachedDepth;
+    m_lastThinkingTimeMs = m_lastStats.elapsedMs;
+    return bestMove;
+}
+
+void AI::initSearch(GameEngine& engine)
+{
+    initZobrist();
+    for (TTEntry& e : m_tt)
+        e = TTEntry{};
+    const Board& board = engine.getBoard();
+    m_hash = 0;
+    for (int cellIndex = 0; cellIndex < BOARD_CELLS; ++cellIndex)
+    {
+        Cell occupant = board.get(cellIndex);
+        if (occupant != Cell::EMPTY)
+            m_hash ^= Z_STONE[cellIndex][colorIndex(occupant)];
+    }
+    if (engine.getCurrentPlayer() == Cell::WHITE)
+        m_hash ^= Z_SIDE;
+}
+
+void AI::playHashed(GameEngine& engine, int move)
+{
+    Cell mover = engine.getCurrentPlayer();
+    engine.playMove(move);
+    const Move& mv = engine.getBoard().history().back();
+    m_hash ^= Z_STONE[mv.pos][colorIndex(mover)];
+    for (int cap : mv.captured)
+        m_hash ^= Z_STONE[cap][colorIndex(opponent(mover))];
+    m_hash ^= Z_SIDE;
+}
+
+void AI::undoHashed(GameEngine& engine)
+{
+    const Move& mv = engine.getBoard().history().back();
+    Cell mover = mv.player;
+    m_hash ^= Z_STONE[mv.pos][colorIndex(mover)];
+    for (int cap : mv.captured)
+        m_hash ^= Z_STONE[cap][colorIndex(opponent(mover))];
+    m_hash ^= Z_SIDE;
+    engine.undoMove();
+}
+
+uint64_t AI::positionKey(GameEngine& engine) const
+{
+    int bCap = std::min(engine.getCaptureCount(Cell::BLACK), CAP_CLAMP);
+    int wCap = std::min(engine.getCaptureCount(Cell::WHITE), CAP_CLAMP);
+    return m_hash ^ Z_CAP[0][bCap] ^ Z_CAP[1][wCap];
 }

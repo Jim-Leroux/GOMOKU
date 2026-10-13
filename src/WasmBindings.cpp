@@ -1,7 +1,6 @@
-#include <emscripten/bind.h>
-#include "GameEngine.hpp"
-#include <vector>
 #include "AI.hpp"
+
+#include <emscripten/bind.h>
 
 using namespace emscripten;
 
@@ -82,6 +81,10 @@ public:
         return ai.findBestMove(engine, depth); // flat index, or -1 if no move
     }
 
+    int findBestMoveTimedMs(int budgetMs) {
+        return ai.findBestMoveTimed(engine, std::chrono::milliseconds(budgetMs));
+    }
+
     long long getLastAiThinkingTimeMs() const {
         return ai.lastThinkingTimeMs();
     }
@@ -121,6 +124,7 @@ EMSCRIPTEN_BINDINGS(gomoku_module) {
         .function("setMode", &WebGame::setMode)
         .function("isHumanTurn", &WebGame::isHumanTurn)
         .function("findBestMoveAtDepth", &WebGame::findBestMoveAtDepth)
+        .function("findBestMoveTimedMs", &WebGame::findBestMoveTimedMs)
         .function("getLastAiThinkingTimeMs", &WebGame::getLastAiThinkingTimeMs)
         .function("getLastAiSearchDepth", &WebGame::getLastAiSearchDepth);
 }
