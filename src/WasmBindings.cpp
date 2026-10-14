@@ -78,11 +78,20 @@ public:
     }
 
     int findBestMoveAtDepth(int depth) {
+        ai.setPlayer(engine.getCurrentPlayer());
         return ai.findBestMove(engine, depth); // flat index, or -1 if no move
     }
 
     int findBestMoveTimedMs(int budgetMs) {
+        ai.setPlayer(engine.getCurrentPlayer());
         return ai.findBestMoveTimed(engine, std::chrono::milliseconds(budgetMs));
+    }
+
+    int getSuggestedMove() {
+        if (engine.isTerminal())
+            return -1;
+        ai.setPlayer(engine.getCurrentPlayer());
+        return ai.findBestMoveTimed(engine, std::chrono::milliseconds(500));
     }
 
     long long getLastAiThinkingTimeMs() const {
@@ -125,6 +134,7 @@ EMSCRIPTEN_BINDINGS(gomoku_module) {
         .function("isHumanTurn", &WebGame::isHumanTurn)
         .function("findBestMoveAtDepth", &WebGame::findBestMoveAtDepth)
         .function("findBestMoveTimedMs", &WebGame::findBestMoveTimedMs)
+        .function("getSuggestedMove", &WebGame::getSuggestedMove)
         .function("getLastAiThinkingTimeMs", &WebGame::getLastAiThinkingTimeMs)
         .function("getLastAiSearchDepth", &WebGame::getLastAiSearchDepth);
 }

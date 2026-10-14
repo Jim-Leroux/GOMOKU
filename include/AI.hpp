@@ -16,6 +16,7 @@ class AI
 public:
     explicit AI(Cell aiPlayer) : m_aiPlayer(aiPlayer), m_tt(TT_SIZE) {}
     Cell player() const { return m_aiPlayer; }
+    void setPlayer(Cell aiPlayer) { m_aiPlayer = aiPlayer; }
     int evaluate(const Board& board) const;
 
     int findBestMove(GameEngine& engine, int depth);

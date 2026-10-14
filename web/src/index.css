@@ -312,3 +312,56 @@ body {
   align-items: center;
 }
 
+.suggested-indicator {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  z-index: 12;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.suggested-indicator.black {
+  background: rgba(17, 17, 17, 0.45);
+  border: 2px dashed var(--accent-purple);
+  box-shadow: 0 0 14px var(--accent-purple);
+}
+
+.suggested-indicator.white {
+  background: rgba(255, 255, 255, 0.6);
+  border: 2px dashed var(--accent-blue);
+  box-shadow: 0 0 14px var(--accent-blue);
+}
+
+.suggested-pulse {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--accent-pink);
+  animation: suggestPulse 1.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes suggestPulse {
+  0% {
+    transform: scale(0.8);
+    opacity: 0.9;
+    box-shadow: 0 0 0 0 rgba(255, 97, 136, 0.7);
+  }
+  70% {
+    transform: scale(1.6);
+    opacity: 0;
+    box-shadow: 0 0 0 10px rgba(255, 97, 136, 0);
+  }
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+}
+
+

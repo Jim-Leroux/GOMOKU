@@ -18,6 +18,8 @@ function App() {
   const [thinkingTimeMs, setThinkingTimeMs] = useState(null);
   const [searchDepth, setSearchDepth] = useState(null);
   const [liveThinkingMs, setLiveThinkingMs] = useState(0);
+  const [suggestedMove, setSuggestedMove] = useState(null);
+  const [hintCalculating, setHintCalculating] = useState(false);
 
   const updateBoard = (gameEngine) => {
     const state = gameEngine.getBoardState();
@@ -88,6 +90,7 @@ function App() {
     if (mode === 'pvai' && !engine.isHumanTurn())
       return;
     if (engine.isLegalMove(row, col)) {
+      setSuggestedMove(null);
       engine.playMove(row, col);
       updateBoard(engine);
       if (mode === 'pvai')
@@ -100,6 +103,7 @@ function App() {
     const count = engine.getMoveCount();
     if (count === 0) return;
 
+    setSuggestedMove(null);
     if (mode === 'pvai') {
       // In PvAI, if it's the human's turn, the AI made the last move.
       // Undo both the AI move and the human move so the human can play again.
@@ -116,16 +120,36 @@ function App() {
     setSearchDepth(null);
   }, [engine, aiThinking, mode]);
 
+  const handleSuggestMove = useCallback(() => {
+    if (!engine || engine.isTerminal() || aiThinking || hintCalculating)
+      return;
+    setHintCalculating(true);
+    setTimeout(() => {
+      try {
+        const move = engine.getSuggestedMove ? engine.getSuggestedMove() : engine.findBestMoveTimedMs(500);
+        if (move >= 0) {
+          setSuggestedMove(move);
+        }
+      } catch (e) {
+        console.error('Failed to get suggested move', e);
+      } finally {
+        setHintCalculating(false);
+      }
+    }, 10);
+  }, [engine, aiThinking, hintCalculating]);
+
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (mode === null || aiThinking) return;
       if (e.key === 'u' || e.key === 'U') {
         handleUndo();
+      } else if (e.key === 'h' || e.key === 'H') {
+        handleSuggestMove();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [mode, aiThinking, handleUndo]);
+  }, [mode, aiThinking, handleUndo, handleSuggestMove]);
 
   const startGame = (chosenMode) => {
     engine.setMode(chosenMode === 'pvai' ? 1 : 0);
@@ -134,6 +158,8 @@ function App() {
     setThinkingTimeMs(null);
     setSearchDepth(null);
     setAiThinking(false);
+    setSuggestedMove(null);
+    setHintCalculating(false);
     setMode(chosenMode);
   };
   
@@ -143,6 +169,8 @@ function App() {
     setThinkingTimeMs(null);
     setSearchDepth(null);
     setAiThinking(false);
+    setSuggestedMove(null);
+    setHintCalculating(false);
     setMode(null);
   };
 
@@ -212,8 +240,16 @@ function App() {
       <div className="controls-bar">
         <button
           className="btn-secondary"
+          onClick={handleSuggestMove}
+          disabled={!engine || aiThinking || hintCalculating || engine.isTerminal()}
+          title="Afficher la case du meilleur coup (Raccourci: H)"
+        >
+          <span className="icon">💡</span> {hintCalculating ? 'Calcul...' : 'Coup suggéré (H)'}
+        </button>
+        <button
+          className="btn-secondary"
           onClick={handleUndo}
-          disabled={!engine || aiThinking || engine.getMoveCount() === 0}
+          disabled={!engine || aiThinking || hintCalculating || engine.getMoveCount() === 0}
           title="Annuler le coup (Raccourci: U)"
         >
           <span className="icon">↩</span> Annuler coup (U)
@@ -221,7 +257,7 @@ function App() {
         <button
           className="btn-secondary"
           onClick={backToMenu}
-          disabled={aiThinking}
+          disabled={aiThinking || hintCalculating}
           title="Retourner au menu principal"
         >
           <span className="icon">⌂</span> Menu principal
@@ -245,11 +281,18 @@ function App() {
           {board.map((cell, index) => {
             const isBlack = cell === 1;
             const isWhite = cell === 2;
+            const isSuggested = suggestedMove === index && cell === 0;
+            const turnColor = engine.getCurrentPlayer() === 1 ? 'black' : 'white';
             return (
               <div key={index} className="cell" onClick={() => handlePlay(index)}>
                 <div className="crosshair"></div>
                 {(isBlack || isWhite) && (
                   <div className={`stone ${isBlack ? 'black' : 'white'} drop-in`}></div>
+                )}
+                {isSuggested && (
+                  <div className={`suggested-indicator ${turnColor}`}>
+                    <div className="suggested-pulse"></div>
+                  </div>
                 )}
               </div>
             );
