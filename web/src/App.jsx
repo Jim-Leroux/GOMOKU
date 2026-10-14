@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import './index.css';
 
 const AI_SEARCH_DEPTH = 4;
@@ -95,6 +95,38 @@ function App() {
     }
   };
 
+  const handleUndo = useCallback(() => {
+    if (!engine || aiThinking) return;
+    const count = engine.getMoveCount();
+    if (count === 0) return;
+
+    if (mode === 'pvai') {
+      // In PvAI, if it's the human's turn, the AI made the last move.
+      // Undo both the AI move and the human move so the human can play again.
+      engine.undoMove();
+      if (engine.getMoveCount() > 0 && !engine.isHumanTurn()) {
+        engine.undoMove();
+      }
+    } else {
+      // In PvP, undo 1 move
+      engine.undoMove();
+    }
+    updateBoard(engine);
+    setThinkingTimeMs(null);
+    setSearchDepth(null);
+  }, [engine, aiThinking, mode]);
+
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (mode === null || aiThinking) return;
+      if (e.key === 'u' || e.key === 'U') {
+        handleUndo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [mode, aiThinking, handleUndo]);
+
   const startGame = (chosenMode) => {
     engine.setMode(chosenMode === 'pvai' ? 1 : 0);
     engine.reset();
@@ -177,10 +209,34 @@ function App() {
         </div>
       </header>
 
+      <div className="controls-bar">
+        <button
+          className="btn-secondary"
+          onClick={handleUndo}
+          disabled={!engine || aiThinking || engine.getMoveCount() === 0}
+          title="Annuler le coup (Raccourci: U)"
+        >
+          <span className="icon">↩</span> Annuler coup (U)
+        </button>
+        <button
+          className="btn-secondary"
+          onClick={backToMenu}
+          disabled={aiThinking}
+          title="Retourner au menu principal"
+        >
+          <span className="icon">⌂</span> Menu principal
+        </button>
+      </div>
+
       {winner !== 0 && (
         <div className="winner-banner glass-panel">
           <h2>{winner === 1 ? 'Les Noirs' : 'Les Blancs'} ont gagné !</h2>
-          <button className="btn-primary" onClick={backToMenu}>Rejouer</button>
+          <div className="winner-actions">
+            <button className="btn-secondary" onClick={handleUndo}>
+              <span className="icon">↩</span> Annuler dernier coup
+            </button>
+            <button className="btn-primary" onClick={backToMenu}>Rejouer</button>
+          </div>
         </div>
       )}
 

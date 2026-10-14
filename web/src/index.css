@@ -263,3 +263,52 @@ body {
   margin: 2rem auto;
   max-width: 400px;
 }
+
+.controls-bar {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.btn-secondary {
+  background: var(--panel-bg);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.65rem 1.25rem;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  box-shadow: 0 4px 12px rgba(252, 152, 103, 0.25);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-secondary .icon {
+  font-size: 1.1rem;
+}
+
+.winner-actions {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+}
+
