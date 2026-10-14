@@ -20,6 +20,8 @@ function App() {
   const [liveThinkingMs, setLiveThinkingMs] = useState(0);
   const [suggestedMove, setSuggestedMove] = useState(null);
   const [hintCalculating, setHintCalculating] = useState(false);
+  const [illegalMoves, setIllegalMoves] = useState(new Set());
+  const [showIllegalMoves, setShowIllegalMoves] = useState(true);
 
   const updateBoard = (gameEngine) => {
     const state = gameEngine.getBoardState();
@@ -28,6 +30,19 @@ function App() {
       jsArray.push(state.get(i));
     }
     setBoard(jsArray);
+
+    const illegals = new Set();
+    if (gameEngine && !gameEngine.isTerminal()) {
+      for (let i = 0; i < 361; i++) {
+        if (jsArray[i] === 0) {
+          const r = Math.floor(i / 19), c = i % 19;
+          if (!gameEngine.isLegalMove(r, c)) {
+            illegals.add(i);
+          }
+        }
+      }
+    }
+    setIllegalMoves(illegals);
   };
 
   useEffect(() => {
@@ -255,6 +270,13 @@ function App() {
           <span className="icon">↩</span> Annuler coup (U)
         </button>
         <button
+          className={`btn-secondary ${showIllegalMoves ? 'active-toggle' : ''}`}
+          onClick={() => setShowIllegalMoves(!showIllegalMoves)}
+          title="Afficher/Masquer les coups interdits (Double-trois)"
+        >
+          <span className="icon">{showIllegalMoves ? '🚫' : '⭕'}</span> Coups interdits {showIllegalMoves ? 'ON' : 'OFF'}
+        </button>
+        <button
           className="btn-secondary"
           onClick={backToMenu}
           disabled={aiThinking || hintCalculating}
@@ -282,9 +304,15 @@ function App() {
             const isBlack = cell === 1;
             const isWhite = cell === 2;
             const isSuggested = suggestedMove === index && cell === 0;
+            const isIllegal = showIllegalMoves && cell === 0 && illegalMoves.has(index);
             const turnColor = engine.getCurrentPlayer() === 1 ? 'black' : 'white';
             return (
-              <div key={index} className="cell" onClick={() => handlePlay(index)}>
+              <div
+                key={index}
+                className={`cell ${isIllegal ? 'illegal-cell' : ''}`}
+                onClick={() => handlePlay(index)}
+                title={isIllegal ? 'Coup interdit (Double-trois)' : undefined}
+              >
                 <div className="crosshair"></div>
                 {(isBlack || isWhite) && (
                   <div className={`stone ${isBlack ? 'black' : 'white'} drop-in`}></div>
@@ -292,6 +320,11 @@ function App() {
                 {isSuggested && (
                   <div className={`suggested-indicator ${turnColor}`}>
                     <div className="suggested-pulse"></div>
+                  </div>
+                )}
+                {isIllegal && (
+                  <div className="illegal-marker">
+                    <div className="illegal-icon">✕</div>
                   </div>
                 )}
               </div>
