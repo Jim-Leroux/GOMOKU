@@ -34,6 +34,7 @@ public:
     Cell getWinner()         const;
     Cell getCurrentPlayer()  const;
     int  getMoveCount()      const;
+    int  getLastMove()       const;
 
     // ── Captures ────────────────────────────────────────────────────────────
     int getCaptureCount(Cell player) const;

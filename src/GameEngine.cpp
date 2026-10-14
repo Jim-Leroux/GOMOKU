@@ -122,6 +122,13 @@ int GameEngine::getMoveCount() const
     return m_board.moveCount();
 }
 
+int GameEngine::getLastMove() const
+{
+    if (m_board.history().empty())
+        return -1;
+    return m_board.history().back().pos;
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 //  Captures
 // ─────────────────────────────────────────────────────────────────────────────

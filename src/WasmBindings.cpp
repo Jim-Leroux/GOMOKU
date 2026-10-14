@@ -59,6 +59,10 @@ public:
         return engine.getCaptureCount(Cell::WHITE);
     }
 
+    int getLastMove() const {
+        return engine.getLastMove();
+    }
+
     void undoMove() {
         engine.undoMove();
     }
@@ -126,6 +130,7 @@ EMSCRIPTEN_BINDINGS(gomoku_module) {
         .function("getWinner", &WebGame::getWinner)
         .function("isTerminal", &WebGame::isTerminal)
         .function("getMoveCount", &WebGame::getMoveCount)
+        .function("getLastMove", &WebGame::getLastMove)
         .function("getBlackCaptures", &WebGame::getBlackCaptures)
         .function("getWhiteCaptures", &WebGame::getWhiteCaptures)
         .function("undoMove", &WebGame::undoMove)

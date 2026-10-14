@@ -22,6 +22,7 @@ function App() {
   const [hintCalculating, setHintCalculating] = useState(false);
   const [illegalMoves, setIllegalMoves] = useState(new Set());
   const [showIllegalMoves, setShowIllegalMoves] = useState(true);
+  const [lastMove, setLastMove] = useState(-1);
   const [darkMode, setDarkMode] = useState(() => {
     return localStorage.getItem('gomoku_theme') === 'dark';
   });
@@ -43,6 +44,10 @@ function App() {
       jsArray.push(state.get(i));
     }
     setBoard(jsArray);
+
+    if (gameEngine && gameEngine.getLastMove) {
+      setLastMove(gameEngine.getLastMove());
+    }
 
     const illegals = new Set();
     if (gameEngine && !gameEngine.isTerminal()) {
@@ -188,6 +193,7 @@ function App() {
     setAiThinking(false);
     setSuggestedMove(null);
     setHintCalculating(false);
+    setLastMove(-1);
     setMode(chosenMode);
   };
   
@@ -199,6 +205,7 @@ function App() {
     setAiThinking(false);
     setSuggestedMove(null);
     setHintCalculating(false);
+    setLastMove(-1);
     setMode(null);
   };
 
@@ -216,7 +223,7 @@ function App() {
       <div className="app-container">
         <div className="menu-screen glass-panel">
           <div className="menu-header">
-            <h1 className="title">Gomoku Master</h1>
+            <h1 className="title">Gomoku</h1>
             <button
               className="theme-toggle-btn"
               onClick={() => setDarkMode(!darkMode)}
@@ -242,7 +249,7 @@ function App() {
     <div className="app-container">
       <header className="glass-panel header">
         <div className="header-brand">
-          <h1 className="title">Gomoku Master</h1>
+          <h1 className="title">Gomoku</h1>
           <button
             className="theme-toggle-icon-btn"
             onClick={() => setDarkMode(!darkMode)}
@@ -336,6 +343,7 @@ function App() {
             const isWhite = cell === 2;
             const isSuggested = suggestedMove === index && cell === 0;
             const isIllegal = showIllegalMoves && cell === 0 && illegalMoves.has(index);
+            const isLast = lastMove === index && cell !== 0;
             const turnColor = engine.getCurrentPlayer() === 1 ? 'black' : 'white';
             return (
               <div
@@ -346,7 +354,9 @@ function App() {
               >
                 <div className="crosshair"></div>
                 {(isBlack || isWhite) && (
-                  <div className={`stone ${isBlack ? 'black' : 'white'} drop-in`}></div>
+                  <div className={`stone ${isBlack ? 'black' : 'white'} ${isLast ? 'last-move' : ''} drop-in`}>
+                    {isLast && <div className="last-move-dot"></div>}
+                  </div>
                 )}
                 {isSuggested && (
                   <div className={`suggested-indicator ${turnColor}`}>
