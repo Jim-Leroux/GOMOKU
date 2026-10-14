@@ -6,7 +6,7 @@
   --bg-gradient: #f3f3f1;
   --board-color: #ffd866;
   --board-lines: #727072;
-  --panel-bg: rgba(255, 255, 255, 0.8);
+  --panel-bg: rgba(255, 255, 255, 0.82);
   --glass-border: rgba(45, 42, 46, 0.1);
   --text-main: #2d2a2e;
   --text-muted: #727072;
@@ -15,6 +15,26 @@
   --accent-purple: #ab9df2;
   --accent-blue: #78dce8;
   --accent-orange: #fc9867;
+  --winner-title-color: #6a9b3a;
+}
+
+:root.dark-theme,
+body.dark-theme {
+  /* Monokai Pro Dark Palette */
+  --bg-color: #1e1c1f;
+  --bg-gradient: #141215;
+  --board-color: #cca45e;
+  --board-lines: #262016;
+  --panel-bg: rgba(34, 31, 34, 0.88);
+  --glass-border: rgba(255, 255, 255, 0.12);
+  --text-main: #fcfcfa;
+  --text-muted: #939293;
+  --accent-pink: #ff6188;
+  --accent-green: #a9dc76;
+  --accent-purple: #ab9df2;
+  --accent-blue: #78dce8;
+  --accent-orange: #fc9867;
+  --winner-title-color: #a9dc76;
 }
 
 * {
@@ -32,6 +52,7 @@ body {
   display: flex;
   justify-content: center;
   align-items: center;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 .app-container {
@@ -60,12 +81,39 @@ body {
   padding: 1.5rem 3rem;
 }
 
+.header-brand {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+}
+
 .title {
   font-weight: 800;
   font-size: 2.5rem;
   background: linear-gradient(135deg, var(--accent-pink), var(--accent-purple));
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
+}
+
+.theme-toggle-icon-btn {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 42px;
+  height: 42px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.25rem;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.theme-toggle-icon-btn:hover {
+  transform: rotate(20deg) scale(1.1);
+  border-color: var(--accent-orange);
+  box-shadow: 0 4px 14px rgba(252, 152, 103, 0.35);
 }
 
 .stats {
@@ -212,7 +260,7 @@ body {
 }
 
 .winner-banner h2 {
-  color: #6a9b3a; /* Darker green for contrast on light mode */
+  color: var(--winner-title-color);
   font-size: 2rem;
 }
 
@@ -261,7 +309,36 @@ body {
   gap: 1.5rem;
   padding: 3rem;
   margin: 2rem auto;
-  max-width: 400px;
+  max-width: 420px;
+  width: 100%;
+}
+
+.menu-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.theme-toggle-btn {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-main);
+  padding: 0.45rem 1.1rem;
+  border-radius: 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.theme-toggle-btn:hover {
+  border-color: var(--accent-orange);
+  color: var(--accent-orange);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(252, 152, 103, 0.25);
 }
 
 .controls-bar {

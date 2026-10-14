@@ -22,6 +22,19 @@ function App() {
   const [hintCalculating, setHintCalculating] = useState(false);
   const [illegalMoves, setIllegalMoves] = useState(new Set());
   const [showIllegalMoves, setShowIllegalMoves] = useState(true);
+  const [darkMode, setDarkMode] = useState(() => {
+    return localStorage.getItem('gomoku_theme') === 'dark';
+  });
+
+  useEffect(() => {
+    if (darkMode) {
+      document.documentElement.classList.add('dark-theme');
+      localStorage.setItem('gomoku_theme', 'dark');
+    } else {
+      document.documentElement.classList.remove('dark-theme');
+      localStorage.setItem('gomoku_theme', 'light');
+    }
+  }, [darkMode]);
 
   const updateBoard = (gameEngine) => {
     const state = gameEngine.getBoardState();
@@ -202,7 +215,16 @@ function App() {
     return (
       <div className="app-container">
         <div className="menu-screen glass-panel">
-          <h1 className="title">Gomoku Master</h1>
+          <div className="menu-header">
+            <h1 className="title">Gomoku Master</h1>
+            <button
+              className="theme-toggle-btn"
+              onClick={() => setDarkMode(!darkMode)}
+              title={darkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+            >
+              {darkMode ? '☀️ Mode Clair' : '🌙 Mode Sombre'}
+            </button>
+          </div>
           <button className="btn-primary" onClick={() => startGame('pvp')}>
             Joueur vs Joueur
           </button>
@@ -219,7 +241,16 @@ function App() {
   return (
     <div className="app-container">
       <header className="glass-panel header">
-        <h1 className="title">Gomoku Master</h1>
+        <div className="header-brand">
+          <h1 className="title">Gomoku Master</h1>
+          <button
+            className="theme-toggle-icon-btn"
+            onClick={() => setDarkMode(!darkMode)}
+            title={darkMode ? "Passer en mode clair" : "Passer en mode sombre"}
+          >
+            {darkMode ? '☀️' : '🌙'}
+          </button>
+        </div>
         <div className="stats">
           <div className="stat-box">
             <span className="label">Tour</span>
